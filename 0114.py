@@ -498,7 +498,7 @@ dataset.head()
 
 # # modeling
 
-# In[65]:
+# In[62]:
 
 
 train = dataset[:train_len]
@@ -506,7 +506,7 @@ test = dataset[train_len:]
 test.drop(labels = ["Survived"],axis = 1,inplace = True)
 
 
-# In[66]:
+# In[63]:
 
 
 train["Survived"] = train["Survived"].astype(int)
@@ -514,13 +514,13 @@ Y_train = train["Survived"]
 X_train = train.drop(labels = ["Survived"],axis = 1)
 
 
-# In[67]:
+# In[64]:
 
 
 kfold = StratifiedKFold(n_splits = 10)
 
 
-# In[73]:
+# In[65]:
 
 
 random_state = 2
@@ -550,7 +550,7 @@ cv_res = pd.DataFrame({"CrossValMeans":cv_means,"CrossValerrors": cv_std,"Algori
 "RandomForest","ExtraTrees","GradientBoosting","MultipleLayerPerceptron","KNeighboors","LogisticRegression","LinearDiscriminantAnalysis"]})
 
 
-# In[75]:
+# In[66]:
 
 
 # orient : orient“v” | “h”, optional
@@ -561,10 +561,220 @@ cv_res = pd.DataFrame({"CrossValMeans":cv_means,"CrossValerrors": cv_std,"Algori
 g = sns.barplot("CrossValMeans","Algorithm",data = cv_res, palette="Set3",orient = "h",**{'xerr':cv_std})
 
 
-# In[ ]:
+# In[68]:
 
 
 # SAMME.R uses the probability estimates to update the additive model, while SAMME uses the classifications only.
 DTC = DecisionTreeClassifier()
 adaDTC = AdaBoostClassifier(DTC,random_state = 7)
+ada_param_grid = {"base_estimator__criterion" : ["gini", "entropy"],
+              "base_estimator__splitter" :   ["best", "random"],
+              "algorithm" : ["SAMME","SAMME.R"],
+              "n_estimators" :[1,2],
+              "learning_rate":  [0.0001, 0.001, 0.01, 0.1, 0.2, 0.3,1.5]}
+gsadaDTC = GridSearchCV(adaDTC,param_grid = ada_param_grid, cv = kfold,scoring = 'accuracy',n_jobs = 4,verbose=1)
+# verbose : Controls the verbosity: the higher, the more messages.
+gsadaDTC.fit(X_train,Y_train)
+ada_best = gsadaDTC.best_estimator_
+
+
+# In[69]:
+
+
+gsadaDTC.best_score_
+
+
+# In[70]:
+
+
+ExtC = ExtraTreesClassifier()
+ex_param_grid = {"max_depth": [None],
+              "max_features": [1, 3, 10],
+              "min_samples_split": [2, 3, 10],
+              "min_samples_leaf": [1, 3, 10],
+              "bootstrap": [False],
+              "n_estimators" :[100,300],
+              "criterion": ["gini"]}
+# bootstrapbool, default=False
+#Whether bootstrap samples are used when building trees. If False, the whole dataset is used to build each tree.
+
+gsExtC = GridSearchCV(ExtC,param_grid = ex_param_grid, cv=kfold, scoring="accuracy", n_jobs= 4, verbose = 1)
+
+gsExtC.fit(X_train,Y_train)
+
+ExtC_best = gsExtC.best_estimator_
+
+# Best score
+gsExtC.best_score_
+
+
+# In[71]:
+
+
+RFC = RandomForestClassifier()
+
+rf_param_grid = {"max_depth": [None],
+              "max_features": [1, 3, 10],
+              "min_samples_split": [2, 3, 10],
+              "min_samples_leaf": [1, 3, 10],
+              "bootstrap": [False],
+              "n_estimators" :[100,300],
+              "criterion": ["gini"]}
+
+
+gsRFC = GridSearchCV(RFC,param_grid = rf_param_grid, cv=kfold, scoring="accuracy", n_jobs= 4, verbose = 1)
+
+gsRFC.fit(X_train,Y_train)
+
+RFC_best = gsRFC.best_estimator_
+
+gsRFC.best_score_
+
+
+# In[72]:
+
+
+GBC = GradientBoostingClassifier()
+gb_param_grid = {'loss' : ["deviance"],
+              'n_estimators' : [100,200,300],
+              'learning_rate': [0.1, 0.05, 0.01],
+              'max_depth': [4, 8],
+              'min_samples_leaf': [100,150],
+              'max_features': [0.3, 0.1] 
+              }
+
+gsGBC = GridSearchCV(GBC,param_grid = gb_param_grid, cv=kfold, scoring="accuracy", n_jobs= 4, verbose = 1)
+
+gsGBC.fit(X_train,Y_train)
+
+GBC_best = gsGBC.best_estimator_
+
+gsGBC.best_score_
+
+
+# In[73]:
+
+
+# Support Vector Classification.
+SVMC = SVC(probability=True)
+
+svc_param_grid = {'kernel': ['rbf'], 
+                  'gamma': [ 0.001, 0.01, 0.1, 1],
+                  'C': [1, 10, 50, 100,200,300, 1000]}
+
+gsSVMC = GridSearchCV(SVMC,param_grid = svc_param_grid, cv=kfold, scoring="accuracy", n_jobs= 4, verbose = 1)
+
+gsSVMC.fit(X_train,Y_train)
+
+SVMC_best = gsSVMC.best_estimator_
+
+gsSVMC.best_score_
+
+
+# In[74]:
+
+
+def plot_learning_curve(estimator,title,X,y,ylim = None,cv = None,n_jobs = -1,train_sizes = np.linspace(.1,1.0,5)):
+    plt.figure()
+    plt.title(title)
+    if ylim is not None:
+        plt.ylim(*ylim) # ??
+    plt.xlabel("Training examples")
+    plt.ylabel('Score')
+    
+    # Determines cross-validated training and test scores for different training set sizes.
+    train_sizes, train_scores, test_scores = learning_curve(
+        estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+    plt.grid()
+    
+    # Fill the area between two horizontal curves.
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1,
+                     color="r")
+    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
+             label="Training score")
+    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
+             label="Cross-validation score")
+
+    plt.legend(loc="best")
+    return plt
+
+
+# In[75]:
+
+
+g = plot_learning_curve(gsRFC.best_estimator_,"RF mearning curves",X_train,Y_train,cv=kfold)
+g = plot_learning_curve(gsExtC.best_estimator_,"ExtraTrees learning curves",X_train,Y_train,cv=kfold)
+g = plot_learning_curve(gsSVMC.best_estimator_,"SVC learning curves",X_train,Y_train,cv=kfold)
+g = plot_learning_curve(gsadaDTC.best_estimator_,"AdaBoost learning curves",X_train,Y_train,cv=kfold)
+g = plot_learning_curve(gsGBC.best_estimator_,"GradientBoosting learning curves",X_train,Y_train,cv=kfold)
+
+
+# In[77]:
+
+
+nrows = ncols = 2
+fig,axes = plt.subplots(nrows= nrows,ncols = ncols, sharex = 'all',figsize = (15,15))
+names_classifiers = [("AdaBoosting", ada_best),("ExtraTrees",ExtC_best),("RandomForest",RFC_best),("GradientBoosting",GBC_best)]
+
+nclassifier = 0
+
+for row in range(nrows):
+    for col in range(ncols):
+        name = names_classifiers[nclassifier][0]
+        classifier = names_classifiers[nclassifier][1]
+        indices = np.argsort(classifier.feature_importances_)[::-1][:40]
+        indices = np.argsort(classifier.feature_importances_)[::-1][:40]
+        g = sns.barplot(y=X_train.columns[indices][:40],x = classifier.feature_importances_[indices][:40] , orient='h',ax=axes[row][col])
+        g.set_xlabel("Relative importance",fontsize=12)
+        g.set_ylabel("Features",fontsize=12)
+        g.tick_params(labelsize=9)
+        g.set_title(name + " feature importance")
+        nclassifier += 1
+
+
+# In[78]:
+
+
+test_Survived_RFC = pd.Series(RFC_best.predict(test), name="RFC")
+test_Survived_ExtC = pd.Series(ExtC_best.predict(test), name="ExtC")
+test_Survived_SVMC = pd.Series(SVMC_best.predict(test), name="SVC")
+test_Survived_AdaC = pd.Series(ada_best.predict(test), name="Ada")
+test_Survived_GBC = pd.Series(GBC_best.predict(test), name="GBC")
+
+
+# Concatenate all classifier results
+ensemble_results = pd.concat([test_Survived_RFC,test_Survived_ExtC,test_Survived_AdaC,test_Survived_GBC, test_Survived_SVMC],axis=1)
+
+
+g= sns.heatmap(ensemble_results.corr(),annot=True)
+
+
+# In[79]:
+
+
+votingC = VotingClassifier(estimators=[('rfc', RFC_best), ('extc', ExtC_best),
+('svc', SVMC_best), ('adac',ada_best),('gbc',GBC_best)], voting='soft', n_jobs=4)
+
+votingC = votingC.fit(X_train, Y_train)
+
+
+# In[80]:
+
+
+test_Survived = pd.Series(votingC.predict(test), name="Survived")
+
+results = pd.concat([IDtest,test_Survived],axis=1)
+
+
+# In[81]:
+
+
+results.to_csv("ensemble.csv",index=False)
 
