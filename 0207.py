@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[18]:
 
 
 import pandas as pd
@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 get_ipython().run_line_magic('matplotlib', 'inline')
+import warnings
+warnings.filterwarnings("ignore")
 
 from collections import Counter
 
@@ -112,8 +114,45 @@ train.dtypes
 train.describe()
 
 
-# In[ ]:
+# In[16]:
 
 
+# It doesn't mean that the other features are not usefull.
+# Subpopulations in these features can be correlated with the survival.
+# To determine this, we need to explore in detail these features
 
+g = sns.heatmap(train[["Survived","SibSp","Parch","Age","Fare"]].corr(),annot = True,fmt = ".2f",cmap = "coolwarm")
+
+
+# In[19]:
+
+
+g = sns.factorplot(x = 'SibSp', y = 'Survived',data = train, kind = "bar", size = 6, palette = "muted")
+g.despine(left = True)
+g = g.set_ylabels('survival probability')
+
+
+# In[20]:
+
+
+g = sns.factorplot(x = 'Parch', y = 'Survived', data = train, kind = 'bar',size = 6, palette = 'muted')
+g.despine(left = True)
+g = g.set_ylabels('survival probability')
+
+
+# In[21]:
+
+
+g = sns.FacetGrid(train,col = 'Survived')
+g = g.map(sns.distplot,'Age')
+
+
+# In[23]:
+
+
+g = sns.kdeplot(train["Age"][(train["Survived"] == 0) & (train["Age"].notnull())],color = 'Red',shade = True)
+g = sns.kdeplot(train["Age"][(train["Survived"] == 1) & (train["Age"].notnull())],ax = g, color = "Blue",shade = True)
+g.set_xlabel("Age")
+g.set_ylabel("Frequency")
+g = g.legend(["Not Survived","Survived"])
 
