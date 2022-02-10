@@ -172,39 +172,10 @@ class SklearnHelper(object):
     
 
 
-# In[28]:
-
-
-ntrain = train.shape[0]
-ntest = test.shape[0]
-SEED = 0 # for reproducibility
-NFOLDS = 5 # set folds for out-of-fold prediction
-kf = KFold(n_splits= NFOLDS)
-
-# Class to extend the Sklearn classifier
-class SklearnHelper(object):
-    def __init__(self, clf, seed=0, params=None):
-        params['random_state'] = seed
-        self.clf = clf(**params)
-
-    def train(self, x_train, y_train):
-        self.clf.fit(x_train, y_train)
-
-    def predict(self, x):
-        return self.clf.predict(x)
-    
-    def fit(self,x,y):
-        return self.clf.fit(x,y)
-    
-    def feature_importances(self,x,y):
-        
-        print(self.clf.fit(x,y).feature_importances_)
-
-
 # In[29]:
 
 
-def get_oof(clf,x_train,y_train,x_test):
+def get_oof(clf,x_train,y_train,x_test): # train , test 나누기 -> 둘 다 1차원
     oof_train = np.zeros((ntrain,))
     oof_test = np.zeros((ntest,))
     oof_test_skf = np.empty((NFOLDS,ntest))
@@ -512,6 +483,68 @@ layout = go.Layout(
 )
 fig = go.Figure(data = data, layout = layout)
 py.iplot(fig,filename = 'bar-direct- labels')
+
+
+# # Seconde - level Predictions from the First-level output
+
+# In[42]:
+
+
+base_predictions_train = pd.DataFrame( {'RandomForest': rf_oof_train.ravel(),
+     'ExtraTrees': et_oof_train.ravel(),
+     'AdaBoost': ada_oof_train.ravel(),
+      'GradientBoost': gb_oof_train.ravel()
+    })
+base_predictions_train.head()
+
+
+# In[43]:
+
+
+data = [
+    go.Heatmap(
+        z= base_predictions_train.astype(float).corr().values ,
+        x=base_predictions_train.columns.values,
+        y= base_predictions_train.columns.values,
+          colorscale='Viridis',
+            showscale=True,
+            reversescale = True
+    )
+]
+py.iplot(data, filename='labelled-heatmap')
+
+
+# In[44]:
+
+
+x_train = np.concatenate(( et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, svc_oof_train), axis=1)
+x_test = np.concatenate(( et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, svc_oof_test), axis=1)
+
+
+# In[47]:
+
+
+gbm = xgb.XGBClassifier(
+    #learning_rate = 0.02,
+     n_estimators= 2000,
+     max_depth= 4,
+     min_child_weight= 2,
+     #gamma=1,
+     gamma=0.9,                        
+     subsample=0.8,
+     colsample_bytree=0.8,
+     objective= 'binary:logistic',
+     nthread= -1,
+     scale_pos_weight=1).fit(x_train, y_train)
+predictions = gbm.predict(x_test)
+
+
+# In[48]:
+
+
+StackingSubmission = pd.DataFrame({ 'PassengerId': PassengerId,
+                            'Survived': predictions })
+StackingSubmission.to_csv("StackingSubmission.csv", index=False)
 
 
 # In[ ]:
