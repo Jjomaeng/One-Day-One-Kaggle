@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[32]:
+# In[3]:
 
 
 import numpy as np
@@ -21,26 +21,26 @@ from sklearn.ensemble import RandomForestClassifier
 pd.set_option('display.max_columns',100)
 
 
-# In[33]:
+# In[4]:
 
 
 train = pd.read_csv('../data/porto-seguro-safe-driver-prediction/train.csv')
 test = pd.read_csv('../data/porto-seguro-safe-driver-prediction/test.csv')
 
 
-# In[34]:
+# In[5]:
 
 
 train.head(10)
 
 
-# In[35]:
+# In[6]:
 
 
 train.info()
 
 
-# In[36]:
+# In[7]:
 
 
 train.describe()
@@ -48,7 +48,7 @@ train.describe()
 
 # ## target
 
-# In[37]:
+# In[8]:
 
 
 f,ax = plt.subplots(1,2,figsize = (18,15))
@@ -57,7 +57,7 @@ train['target'].value_counts().plot.pie(autopct = "%1.1f%%",ax = ax[0])
 sns.countplot('target',data = train)
 
 
-# In[38]:
+# In[9]:
 
 
 data = []
@@ -101,46 +101,46 @@ meta = pd.DataFrame(data,columns = ['varname','role','level','keep','dtype'])
 meta.set_index('varname',inplace = True)
 
 
-# In[39]:
+# In[10]:
 
 
 meta
 
 
-# In[40]:
+# In[11]:
 
 
 meta[(meta.level == 'nominal') & (meta.keep)].index
 
 
-# In[41]:
+# In[12]:
 
 
 pd.DataFrame({'count':meta.groupby(['role','level'])['role'].size()}).reset_index()
 
 
-# In[42]:
+# In[13]:
 
 
 v = meta[(meta.level == 'interval') & (meta.keep)].index
 train[v].describe()
 
 
-# In[43]:
+# In[14]:
 
 
 v = meta[(meta.level == 'ordinal') & (meta.keep)].index
 train[v].describe()
 
 
-# In[44]:
+# In[15]:
 
 
 v = meta[(meta.level == 'binary') & (meta.keep)].index
 train[v].describe()
 
 
-# In[45]:
+# In[16]:
 
 
 desired_apriori = 0.10
@@ -163,7 +163,7 @@ idx_list = list(undersampled_idx) + list(idx_1)
 train = train.loc[idx_list].reset_index(drop=True)
 
 
-# In[46]:
+# In[17]:
 
 
 vars_with_missing = []
@@ -179,7 +179,7 @@ for f in train.columns:
 print('In total, there are {} variables with missing values'.format(len(vars_with_missing)))
 
 
-# In[47]:
+# In[18]:
 
 
 vars_to_drop = ['ps_car_03_cat','ps_car_05_cat']
@@ -194,7 +194,7 @@ train['ps_car_14'] = mode_imp.fit_transform(train[['ps_car_14']]).ravel()
 train['ps_car_11'] = mode_imp.fit_transform(train[['ps_car_11']]).ravel()
 
 
-# In[48]:
+# In[19]:
 
 
 v = meta[(meta.level == 'nominal') & (meta.keep)].index
@@ -204,13 +204,13 @@ for f in v:
     print('Variable {} has {} distinct values'.format(f, dist_values))
 
 
-# In[49]:
+# In[20]:
 
 
 train["ps_car_11_cat"].head(20)
 
 
-# In[50]:
+# In[24]:
 
 
 def add_noise(series,noise_level):
@@ -227,7 +227,6 @@ def target_encode(trn_series = None,
     temp = pd.concat([trn_series,target],axis = 1)
     
     averages = temp.groupby(by = trn_series.name)[target.name].agg(['mean','count'])
-    print(averages)
     smoothing = 1/( 1 + np.exp(-(averages['count'] - min_samples_leaf) / smoothing))
     
     prior = target.mean()
@@ -253,7 +252,7 @@ def target_encode(trn_series = None,
     
 
 
-# In[51]:
+# In[25]:
 
 
 train_encoded, test_encoded = target_encode(train["ps_car_11_cat"], 
@@ -270,10 +269,148 @@ test['ps_car_11_cat_te'] = test_encoded
 #test.drop('ps_car_11_cat', axis=1, inplace=True)
 
 
-# In[52]:
+# # EDA
+# - categorical Variables
+
+# In[28]:
 
 
-train["ps_car_11_cat_te"].head(20)
+v = meta[(meta.level == 'nominal') & (meta.keep)].index
+
+for f in v:
+    plt.figure()
+    fig,ax = plt.subplots(figsize = (20,10))
+    cat_perc = train[[f,'target']].groupby([f],as_index = False).mean()
+    cat_perc.sort_values(by = 'target',ascending = False,inplace = True)
+    
+    sns.barplot(ax = ax,x = f, y = 'target',data = cat_perc,order = cat_perc[f])
+    plt.ylabel('% target',fontsize = 18)
+    plt.xlabel(f,fontsize = 18)
+    plt.tick_params(axis = 'both',which = 'major',labelsize = 18)
+    plt.show()
+
+
+# In[30]:
+
+
+def corr_heatmap(v):
+    correlations = train[v].corr()
+    
+    cmap = sns.diverging_palette(220,10,as_cmap = True)
+    
+    fig,ax = plt.subplots(figsize = (10,10))
+    sns.heatmap(correlations, cmap = cmap ,vmax = 1.0, center = 0,fmt = '.2f',square = True ,linewidths = .5,annot = True,cbar_kws = {"shrink":.75})
+    plt.show()
+v = meta[(meta.level == 'interval') & meta.keep].index
+corr_heatmap(v)
+
+
+# In[32]:
+
+
+s = train.sample(frac = 0.1)
+
+
+# In[35]:
+
+
+sns.lmplot(x = 'ps_reg_02', y = 'ps_reg_03',data = s, hue = 'target')
+plt.show()
+
+
+# In[36]:
+
+
+sns.lmplot(x = 'ps_car_12',y = 'ps_car_13',data = s, hue = 'target')
+
+
+# In[38]:
+
+
+sns.lmplot(x = 'ps_car_15',y = 'ps_car_13',data = s, hue = 'target')
+
+
+# In[39]:
+
+
+v = meta[(meta.level == 'ordinal') & (meta.keep) ].index
+corr_heatmap(v)
+
+
+# In[43]:
+
+
+v = meta[(meta.level == 'nominal') & (meta.keep)].index
+print("Before dummification we have {} variables in train".format(train.shape[1]))
+train = pd.get_dummies(train,columns = v , drop_first = True)
+print("After dummification we have {} variables in train".format(train.shape[1]))
+
+
+# In[45]:
+
+
+v = meta[(meta.level == 'interval') & (meta.keep)].index
+poly = PolynomialFeatures(degree = 2,include_bias=False , interaction_only=False)
+interactions = pd.DataFrame(data = poly.fit_transform(train[v]),columns = poly.get_feature_names(v))
+interactions.drop(v,axis = 1, inplace = True)
+print("Before creating interaction we have {} variables in train".format(train.shape[1]))
+train = pd.concat([train,interactions],axis = 1)
+print("After creating interactions we have {} variables in train".format(train.shape[1]))
+
+
+# In[46]:
+
+
+selector = VarianceThreshold(threshold=.01)
+selector.fit(train.drop(['id', 'target'], axis=1)) # Fit to train without id and target variables
+
+f = np.vectorize(lambda x : not x) # Function to toggle boolean array elements
+
+v = train.drop(['id', 'target'], axis=1).columns[f(selector.get_support())]
+print('{} variables have too low variance.'.format(len(v)))
+print('These variables are {}'.format(list(v)))
+
+
+# In[47]:
+
+
+X_train = train.drop(['id', 'target'], axis=1)
+y_train = train['target']
+
+feat_labels = X_train.columns
+
+rf = RandomForestClassifier(n_estimators=1000, random_state=0, n_jobs=-1)
+
+rf.fit(X_train, y_train)
+importances = rf.feature_importances_
+
+indices = np.argsort(rf.feature_importances_)[::-1]
+
+for f in range(X_train.shape[1]):
+    print("%2d) %-*s %f" % (f + 1, 30,feat_labels[indices[f]], importances[indices[f]]))
+
+
+# In[48]:
+
+
+sfm = SelectFromModel(rf, threshold='median', prefit=True)
+print('Number of features before selection: {}'.format(X_train.shape[1]))
+n_features = sfm.transform(X_train).shape[1]
+print('Number of features after selection: {}'.format(n_features))
+selected_vars = list(feat_labels[sfm.get_support()])
+
+
+# In[49]:
+
+
+train = train[selected_vars + ['target']]
+
+
+# In[50]:
+
+
+scaler = StandardScaler()
+scaler.fit_transform(train.drop(['target'], axis=1))
 
 
 # In[ ]:
