@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 import pandas as pd
@@ -19,20 +19,20 @@ from sklearn.feature_selection import mutual_info_classif
 warnings.filterwarnings('ignore')
 
 
-# In[2]:
+# In[3]:
 
 
 train = pd.read_csv('../data/porto-seguro-safe-driver-prediction/train.csv')
 test = pd.read_csv('../data/porto-seguro-safe-driver-prediction/test.csv')
 
 
-# In[3]:
+# In[4]:
 
 
 train.head()
 
 
-# In[4]:
+# In[5]:
 
 
 rows = train.shape[0]
@@ -40,7 +40,7 @@ columns = train.shape[1]
 train.shape
 
 
-# In[5]:
+# In[6]:
 
 
 #전달받은 자료형의 element 중 하나라도 True일 경우 True를 돌려준다. 
@@ -49,21 +49,21 @@ train.shape
 train.isnull().any().any() # any()한 번이면 컬럼별로 두 번은 컬럼 전체
 
 
-# In[6]:
+# In[7]:
 
 
 train_copy = train
 train_copy = train_copy.replace(-1,np.NaN)
 
 
-# In[7]:
+# In[8]:
 
 
 import missingno as msno
 msno.matrix(df=train_copy.iloc[:,2:39],figsize = (20,14))
 
 
-# In[8]:
+# In[9]:
 
 
 data = [go.Bar( x= train['target'].value_counts().index.values,
@@ -78,20 +78,20 @@ fig = go.Figure(data = data,layout = layout)
 py.iplot(fig,filename = 'basic -bar')
 
 
-# In[9]:
+# In[10]:
 
 
 Counter(train.dtypes.values)
 
 
-# In[10]:
+# In[11]:
 
 
 train_float = train.select_dtypes(include = ['float64'])
 train_int = train.select_dtypes(include = ['int64'])
 
 
-# In[11]:
+# In[12]:
 
 
 colormap = plt.cm.magma
@@ -101,7 +101,7 @@ sns.heatmap(train_float.corr(),linewidths = 0.1,vmax = 1.0,square = True,cmap = 
 )
 
 
-# In[12]:
+# In[13]:
 
 
 data = [
@@ -124,14 +124,14 @@ fig = go.Figure(data = data,layout = layout)
 py.iplot(fig,filename = 'labelled-heatmap')
 
 
-# In[13]:
+# In[14]:
 
 
 mf = mutual_info_classif(train_float.values,train.target.values,n_neighbors = 3, random_state=17)
 print(mf)
 
 
-# In[14]:
+# In[15]:
 
 
 bin_col = [col for col in train.columns if '_bin' in col]
@@ -142,7 +142,7 @@ for col in bin_col:
     one_list.append((train[col]==1).sum())
 
 
-# In[15]:
+# In[16]:
 
 
 trace1 = go.Bar(
@@ -163,7 +163,7 @@ fig = go.Figure(data = data,layout = layout)
 py.iplot(fig,filename = 'stack-bar')
 
 
-# In[16]:
+# In[17]:
 
 
 from sklearn.ensemble import RandomForestClassifier
@@ -172,7 +172,7 @@ rf.fit(train.drop(['id','target'],axis = 1),train.target)
 features = train.drop(['id','target'],axis = 1).columns.values
 
 
-# In[17]:
+# In[18]:
 
 
 trace = go.Scatter(
@@ -211,7 +211,7 @@ fig = go.Figure(data = data, layout = layout)
 py.iplot(fig,filename = 'scatter2022')
 
 
-# In[18]:
+# In[19]:
 
 
 x,y = (list(x) for x in zip(*sorted(zip(rf.feature_importances_,features),reverse = False)))
@@ -239,50 +239,26 @@ fig1['layout'].update(layout)
 py.iplot(fig1,filename= 'plots')
 
 
-# In[29]:
+# In[27]:
 
 
-# from sklearn import tree
-# from IPython.display import Image as PImage
-# from subprocess import check_call
-# from PIL import Image, ImageDraw, ImageFont
-# import re
-# import graphviz
-# from sklearn.tree import export_graphviz
+from sklearn import tree
+from IPython.display import Image as PImage
+from subprocess import check_call
+from PIL import Image, ImageDraw, ImageFont
+import re
+from sklearn.tree import plot_tree
 
-# decision_tree = tree.DecisionTreeClassifier(max_depth = 3)
-# decision_tree.fit(train.drop(['id', 'target'],axis=1), train.target)
+decision_tree = tree.DecisionTreeClassifier(max_depth = 3)
+decision_tree.fit(train.drop(['id', 'target'],axis=1), train.target)
 
-# # Export our trained model as a .dot file
-# with open("tree.dot", 'w') as f:
-#      f = tree.export_graphviz(decision_tree,
-#                               out_file=f,
-#                               max_depth = 4,
-#                               impurity = False,
-#                               feature_names = train.drop(['id', 'target'],axis=1).columns.values,
-#                               class_names = ['No', 'Yes'],
-#                               rounded = True,
-#                               filled= True )
+fig = plt.figure(figsize = (18,10))
+plot_tree(decision_tree,filled = True,feature_names = train.columns,class_names = train['target'].astype(str).unique(),fontsize = 10)
 
-# # export_graphviz(decision_tree, out_file="tree.dot",
-# #                 feature_names=train.drop(['id', 'target'],axis=1).columns.values,
-# #                 class_names=['No', 'Yes'], 
-# #                 filled=True)
-
-# # with open("tree.dot") as f :
-# #     dot_graph = f.read()
-# # display(graphviz.Source(dot_graph))
-# #Convert .dot to .png to allow display in web notebook
-# check_call(['dot','-Tpng','tree1.dot','-o','tree1.png'])
-
-# # Annotating chart with PIL
-# img = Image.open("tree.png")
-# draw = ImageDraw.Draw(img)
-# img.save('sample-out.png')
-# PImage("sample-out.png",)
+plt.show()
 
 
-# In[20]:
+# In[28]:
 
 
 from sklearn.ensemble import GradientBoostingClassifier
@@ -291,7 +267,7 @@ gb.fit(train.drop(['id', 'target'],axis=1), train.target)
 features = train.drop(['id', 'target'],axis=1).columns.values
 
 
-# In[21]:
+# In[29]:
 
 
 trace = go.Scatter(
@@ -335,7 +311,7 @@ fig = go.Figure(data=data, layout=layout)
 py.iplot(fig,filename='scatter2022')
 
 
-# In[22]:
+# In[30]:
 
 
 x, y = (list(x) for x in zip(*sorted(zip(gb.feature_importances_, features), 
